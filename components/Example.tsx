@@ -1,15 +1,18 @@
 import React from 'react'
+import useSWR from 'swr'
+import { useDebounce } from 'ahooks'
 import { Combobox, Dialog, Transition } from '@headlessui/react'
 import { RepositoryOption } from './RepositoryOption'
 import { FaceSmileIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 
-type Repository = {
+export type Repository = {
   id: string
   name: string
   full_name: string
   open_issues_count: number
   stargazers_count: number
   forks_count: number
+  html_url: string
   url: string
   language: string
   owner: {
@@ -19,6 +22,9 @@ type Repository = {
 }
 
 type APIResponse = { items: Repository[] }
+
+const fetcher = ([url, query]: [string, string]) =>
+  fetch(url + `?q=${query}`).then((res) => res.json())
 
 export default function Example() {
   const [open, setOpen] = React.useState(true)
@@ -33,6 +39,12 @@ export default function Example() {
 
   const [rawQuery, setRawQuery] = React.useState('')
   const query = rawQuery.toLowerCase().replace(/^[#>]/, '')
+  const debouncedQuery = useDebounce(query, { wait: 600 })
+
+  const { data, error, isLoading } = useSWR<APIResponse>(
+    debouncedQuery ? ['/api/search', debouncedQuery] : null,
+    fetcher
+  )
 
   return (
     <Transition.Root
@@ -68,7 +80,7 @@ export default function Example() {
               <Combobox
                 value=""
                 onChange={(item) => {
-                  console.info('You have selected', item)
+                  window.open(item, '_blank')
                 }}
               >
                 <div className="relative">
@@ -87,16 +99,20 @@ export default function Example() {
                   static
                   className="max-h-80 scroll-py-10 scroll-pb-2 space-y-4 overflow-y-auto p-4 pb-2"
                 >
-                  <li>
-                    <h2 className="text-xs font-semibold text-gray-200">
-                      Repositories
-                    </h2>
-                    <ul className="-mx-4 mt-2 text-sm text-gray-700 space-y-0.5">
-                      <RepositoryOption />
-                      <RepositoryOption />
-                      <RepositoryOption />
-                    </ul>
-                  </li>
+                  {isLoading ? (
+                    'Loading...'
+                  ) : (
+                    <li>
+                      <h2 className="text-xs font-semibold text-gray-200">
+                        Repositories
+                      </h2>
+                      <ul className="-mx-4 mt-2 text-sm text-gray-700 space-y-0.5">
+                        {data?.items.map((item) => (
+                          <RepositoryOption key={item.id} repository={item} />
+                        ))}
+                      </ul>
+                    </li>
+                  )}
                 </Combobox.Options>
                 <span className="flex flex-wrap items-center bg-slate-900/20 py-2.5 px-4 text-xs text-gray-400">
                   <FaceSmileIcon className="w-4 h-4 mr-1" />
