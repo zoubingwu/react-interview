@@ -1,6 +1,6 @@
 import React from 'react'
 import useSWR from 'swr'
-import { useDebounce } from 'ahooks'
+import { useDebounce, useKeyPress } from 'ahooks'
 import { Combobox, Dialog, Transition } from '@headlessui/react'
 import { RepositoryOption } from './RepositoryOption'
 import { FaceSmileIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
@@ -28,23 +28,21 @@ const fetcher = ([url, query]: [string, string]) =>
 
 export default function Example() {
   const [open, setOpen] = React.useState(true)
-
-  React.useEffect(() => {
-    if (!open) {
-      setTimeout(() => {
-        setOpen(true)
-      }, 500)
-    }
-  }, [open])
-
   const [rawQuery, setRawQuery] = React.useState('')
   const query = rawQuery.toLowerCase().replace(/^[#>]/, '')
   const debouncedQuery = useDebounce(query, { wait: 600 })
 
-  const { data, error, isLoading } = useSWR<APIResponse>(
+  const {
+    data,
+    error,
+    isValidating: isLoading,
+  } = useSWR<APIResponse>(
     debouncedQuery ? ['/api/search', debouncedQuery] : null,
     fetcher
   )
+
+  useKeyPress('meta.k', () => setOpen(true))
+  useKeyPress('esc', () => setOpen(false))
 
   return (
     <Transition.Root
